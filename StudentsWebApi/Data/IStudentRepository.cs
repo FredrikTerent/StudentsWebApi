@@ -12,5 +12,6 @@ namespace StudentsWebApi.Data
         // Student
         Task<List<Student>> GetAllStudentAsync();
         Task<Student> GetStudentAsync(int id);
+        Task<Student> GetStudentByUserNameAsync(string userName);
     }
 }

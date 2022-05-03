@@ -54,6 +54,15 @@ namespace StudentsWebApi.Data
                 return new Student();
         }
 
+        public async Task<Student> GetStudentByUserNameAsync(string userName)
+        {
+            var student = await Task.Run(() => _students.FirstOrDefault(
+                                    o => o.UserName == userName));
+            if (student != null)
+                return student;
+            else
+                return new Student();
+        }
 
         public Task<bool> SaveChangesAsync()
         {

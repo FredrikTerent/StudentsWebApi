@@ -57,6 +57,17 @@ namespace StudentsWebApi.Data
             throw new Exception("Not found");
         }
 
+        public async Task<Student> GetStudentByUserNameAsync(string userName)
+        {
+            logger.LogInformation($"Getting a Student for {userName}");
+
+            IQueryable<Student> query = context.Students;
+
+            // Query It
+            query = query.Where(c => c.UserName == userName);
+            return await query.FirstOrDefaultAsync();
+        }
+
         public async Task<bool> SaveChangesAsync()
         {
             logger.LogInformation($"Attempitng to save the changes in the context");

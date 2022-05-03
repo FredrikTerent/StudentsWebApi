@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Http;
 using StudentsWebApi.Data;
 using Microsoft.AspNetCore.Routing;
+using StudentsWebApi.Models;
+using AutoMapper;
 
 namespace StudentsWebApi.Controllers
 {
@@ -12,12 +14,18 @@ namespace StudentsWebApi.Controllers
 
         private readonly ILogger<StudentsController> _logger;
         private readonly IStudentRepository studentRepository;
+        private readonly LinkGenerator linkGenerator;
+        private readonly IMapper mapper;
 
         public StudentsController(ILogger<StudentsController> logger,
-            IStudentRepository studentRepository)
+            IStudentRepository studentRepository,
+            LinkGenerator linkGenerator,
+            IMapper mapper)
         {
             _logger = logger;
             this.studentRepository = studentRepository;
+            this.linkGenerator = linkGenerator;
+            this.mapper = mapper;
         }
 
         [HttpGet("{id:int}")]
@@ -26,35 +34,71 @@ namespace StudentsWebApi.Controllers
             Student student = await studentRepository.GetStudentAsync(id);
             if (student != null)
             {
-                return Ok(student);
+                var sm = mapper.Map<StudentModel>(student);
+                return Ok(sm);
+                //return Ok(new StudentModel
+                //{
+                //    FName = student.FirstName,
+                //    LName = student.LastName,
+                //    UserName = student.UserName
+                //});
+
+            }
+            return BadRequest("Can´t find student");
+        }
+
+        [HttpGet("{userName}")]
+        public async Task<ActionResult<StudentModel>> Get(string userName)
+        {
+            Student student = await studentRepository.GetStudentByUserNameAsync(userName);
+            if (student != null)
+            {
+                return Ok(new StudentModel { FName=student.FirstName,
+                                                    LName=student.LastName,
+                                                    UserName=student.UserName});
             }
             return BadRequest("Can´t find student");
         }
 
         [HttpGet()]
-        public async Task<ActionResult<Student[]>> GetAll()
+        public async Task<ActionResult<StudentModel[]>> GetAll()
         {
             List<Student> students = await studentRepository.GetAllStudentAsync();
-            return Ok(students);
+            List<StudentModel> newSM=new List<StudentModel>();
+            foreach(Student student in students)
+            {
+                newSM.Add(new StudentModel
+                {
+                    UserName = student.UserName,
+                    FName = student.FirstName,
+                    LName = student.LastName
+                });
+            }
+            return Ok(newSM);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Student>> Post(Student student)
+        public async Task<ActionResult<Student>> Post(StudentModel studentModel)
         {
-            var existing = await studentRepository.GetStudentAsync(student.Id);
-            if (existing != null) return BadRequest("Id in use");
+            var existing = await studentRepository.GetStudentByUserNameAsync(studentModel.UserName);
+            if (existing != null) return BadRequest("UserName in use");
 
             Student newStudent=new Student();   
-            newStudent.FirstName = student.FirstName;
-            newStudent.LastName = student.LastName;
-            newStudent.UserName = student.UserName;
+            newStudent.FirstName = studentModel.FName;
+            newStudent.LastName = studentModel.LName;
+            newStudent.UserName = studentModel.UserName;
             newStudent.Created = DateTime.Now;
             newStudent.Modified = newStudent.Created;
             studentRepository.Add(newStudent);
 
             if (await studentRepository.SaveChangesAsync())
             {
-                return Ok(newStudent); 
+                var location= linkGenerator.GetPathByAction("Post"
+                    ,"Students", new { UserName = newStudent.UserName }); 
+
+
+
+                return Created(location, newStudent);
             }
             return BadRequest("Failed to save changes");
         }
